@@ -151,8 +151,8 @@ function toonFoto(url, klantId) {
 function sendMail(klantId) {
     console.log('Sending email for customer ID:', klantId);
     const klant = klantData.find(k => k.id === klantId);
-    const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
-    const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`);
+    const subject = encodeURIComponent(`Customer ${customer.name} (Customer number: ${klant.customerNumber}) has been delivered`);
+    const body = encodeURIComponent(`The customer ${customer.name} (Customer number: ${klant.customerNumber}) has been delivered.`);
     window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
 }
 
