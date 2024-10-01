@@ -6,8 +6,6 @@
     <title>Customer Management for Forklift Driver</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <style>
         .hidden { display: none; }
         .klant-kader {
@@ -53,7 +51,7 @@
             flex: 1 1 50%;
             padding-right: 20px;
         }
-        #map {
+        .map {
             height: 300px;
             width: 100%;
         }
@@ -70,24 +68,12 @@
     </style>
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-2xl font-bold mb-4">Customer Management for Forklift Driver</h1>
-        
-        <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)..." class="w-full p-2 mb-8 border rounded">
-        <div class="flex flex-wrap justify-between mb-8">
-            <button id="sort-button" class="details-button mb-2">Sort alphabetically</button>
-            <div id="time-dropdown-container" class="mb-2">
-                <select id="time-dropdown" class="p-2 border rounded">
-                    <option value="">Sort by time</option>
-                </select>
-            </div>
-            <button id="original-button" class="details-button hidden mb-2">Original order</button>
-            <button id="capture-button" class="capture-button mb-2">Scan delivery note</button>
-        </div>
-        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
-        <div id="klant-lijst" class="mb-8"></div>
-    </div>
-
-    <script src="script.js"></script>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <script type="text/babel" src="script.js"></script>
 </body>
 </html>

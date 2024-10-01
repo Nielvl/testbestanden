@@ -1,0 +1,58 @@
+.hidden { display: none; }
+.klant-kader {
+    border: 1px solid #ccc; 
+    border-radius: 8px; 
+    padding: 16px;
+    margin-bottom: 16px;
+    background-color: white;
+}
+.details-button, .mail-button, .photo-button, .capture-button {
+    padding: 8px 16px;
+    background-color: #007BFF; 
+    color: white; 
+    border: none; 
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.details-button:hover,
+.mail-button:hover,
+.photo-button:hover,
+.capture-button:hover {
+    background-color: #0056b3;
+}
+.back-button {
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: background-color 0.3s;
+}
+.back-button:hover {
+    background-color: #218838;
+}
+.klant-details {
+    display: flex;
+    flex-wrap: wrap;
+}
+.klant-info {
+    flex: 1 1 50%;
+    padding-right: 20px;
+}
+#map {
+    height: 300px;
+    width: 100%;
+}
+#klant-lijst {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+@media (max-width: 768px) {
+    .klant-info {
+        flex: 1 1 100%;
+    }
+}
