@@ -3,7 +3,7 @@ let klantData = [];
 let origineleVolgorde = [];
 
 function laadKlantData() {
-    const url = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/klantData-vNrf7k3yxNYNA5EqfBf8xdTAbLvyvN.json';
+    const url = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/klantData-kS8uCd52iHfeaqpfcjBMJAxJPxFlZn.json';
 
     fetch(url)
         .then(response => {
@@ -109,9 +109,8 @@ function toonKlantInfo(klantId) {
 
     if (klant.locatie) {
         const [lat, lng] = klant.locatie.split(', ').map(parseFloat);
-        const map = L.map(`map-${klantId}`).setView([lat, lng], 18);
+        const map = L.map(`map-${klantId}`).setView([lat, lng], 17);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
         }).addTo(map);
         L.marker([lat, lng]).addTo(map);
     }
@@ -232,7 +231,8 @@ function extractCustomerInfo(text) {
         }
     }
 
-    // If no customer number is found, search for a customer name
+    // Als er geen klantnummer wordt gevonden,
+    // zoek dan naar een klantnaam
     for (let line of lines) {
         line = line.trim();
         if (line.length > 3 && !/^\d+$/.test(line)) {  // Ignore lines that are just numbers
