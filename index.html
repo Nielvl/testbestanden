@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Management for Forklift Driver</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
 </head>
 <body>
     <div class="container mx-auto px-4 py-8">
@@ -26,9 +28,14 @@
         </div>
 
         <div id="klant-lijst" class="mb-8"></div>
+        <div id="map" style="height: 400px; width: 100%;"></div>
     </div>
 
     <script>
+        let originalCustomers = [];
+        let map;
+        let markers = [];
+
         // Functie om de klantgegevens te laden
         async function loadCustomerData() {
             try {
@@ -55,23 +62,85 @@
                     <p>Time Slot: ${customer.timeSlot || 'Not specified'}</p>
                     <p>Preferences: ${customer.voorkeuren || 'None'}</p>
                 `;
+
+                if (customer.voertuigFoto) {
+                    const img = document.createElement('img');
+                    img.src = customer.voertuigFoto;
+                    img.alt = `Vehicle of ${customer.name}`;
+                    img.className = 'mt-2 max-w-full h-auto';
+                    customerDiv.appendChild(img);
+                }
+
+                if (customer.locatie) {
+                    const mapButton = document.createElement('button');
+                    mapButton.textContent = 'Show on Map';
+                    mapButton.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2';
+                    mapButton.onclick = () => showOnMap(customer.locatie);
+                    customerDiv.appendChild(mapButton);
+                }
+
                 customerList.appendChild(customerDiv);
             });
         }
 
+        // Functie om de Google Map te initialiseren
+        function initMap() {
+            const brussels = { lat: 50.8503, lng: 4.3517 };
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 12,
+                center: brussels,
+            });
+        }
+
+        // Functie om een klant op de kaart te tonen
+        function showOnMap(location) {
+            const [lat, lng] = location.split(', ').map(Number);
+            const position = { lat, lng };
+
+            // Verwijder bestaande markers
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+
+            // Voeg nieuwe marker toe
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+            });
+            markers.push(marker);
+
+            // Centreer de kaart op de marker
+            map.setCenter(position);
+            map.setZoom(15);
+        }
+
+        // Functie voor OCR scanning
+        async function scanDeliveryNote() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = async (event) => {
+                const file = event.target.files[0];
+                const result = await Tesseract.recognize(file);
+                alert(`Scanned Text: ${result.data.text}`);
+                // Hier kun je verdere verwerking van de gescande tekst implementeren
+            };
+            input.click();
+        }
+
         // Hoofdfunctie om de app te initialiseren
         async function initApp() {
-            const customers = await loadCustomerData();
-            displayCustomers(customers);
+            originalCustomers = await loadCustomerData();
+            displayCustomers(originalCustomers);
+            initMap();
 
             // Event listeners voor sorteerknoppen
             document.getElementById('sort-alpha').addEventListener('click', () => {
-                const sortedCustomers = [...customers].sort((a, b) => a.name.localeCompare(b.name));
+                const sortedCustomers = [...originalCustomers].sort((a, b) => a.name.localeCompare(b.name));
                 displayCustomers(sortedCustomers);
             });
 
             document.getElementById('sort-time').addEventListener('click', () => {
-                const sortedCustomers = [...customers].sort((a, b) => {
+                const sortedCustomers = [...originalCustomers].sort((a, b) => {
                     if (!a.timeSlot) return 1;
                     if (!b.timeSlot) return -1;
                     return a.timeSlot.localeCompare(b.timeSlot);
@@ -80,13 +149,11 @@
             });
 
             document.getElementById('sort-original').addEventListener('click', () => {
-                displayCustomers(customers);
+                displayCustomers(originalCustomers);
             });
 
-            // Placeholder voor scan functionaliteit
-            document.getElementById('scan-delivery').addEventListener('click', () => {
-                alert('Scan delivery note functionality not implemented yet.');
-            });
+            // Event listener voor scan functionaliteit
+            document.getElementById('scan-delivery').addEventListener('click', scanDeliveryNote);
         }
 
         // Start de app
