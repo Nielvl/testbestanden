@@ -6,6 +6,8 @@
     <title>Customer Management for Forklift Driver</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <style>
         .hidden { display: none; }
         .klant-kader {
@@ -24,10 +26,7 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        .details-button:hover,
-        .mail-button:hover,
-        .photo-button:hover,
-        .capture-button:hover {
+        .details-button:hover, .mail-button:hover, .photo-button:hover, .capture-button:hover {
             background-color: #0056b3;
         }
         .back-button {
@@ -51,7 +50,7 @@
             flex: 1 1 50%;
             padding-right: 20px;
         }
-        .map {
+        #map {
             height: 300px;
             width: 100%;
         }
@@ -65,15 +64,350 @@
                 flex: 1 1 100%;
             }
         }
+        #camera-preview {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
-    <div id="root"></div>
-    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
-    <script type="text/babel" src="script.js"></script>
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-4">Customer Management for Forklift Driver</h1>
+        
+        <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)..." class="w-full p-2 mb-8 border rounded">
+        <div class="flex flex-wrap justify-between mb-8">
+            <button id="sort-button" class="details-button mb-2">Original order</button>
+            <select id="sort-time-select" class="p-2 border rounded mb-2">
+                <option value="">Sort by time</option>
+                <option value="00:00-01:00">00:00 - 01:00</option>
+                <option value="01:00-02:00">01:00 - 02:00</option>
+                <option value="02:00-03:00">02:00 - 03:00</option>
+                <option value="03:00-04:00">03:00 - 04:00</option>
+                <option value="04:00-05:00">04:00 - 05:00</option>
+                <option value="05:00-06:00">05:00 - 06:00</option>
+                <option value="06:00-07:00">06:00 - 07:00</option>
+                <option value="07:00-08:00">07:00 - 08:00</option>
+                <option value="08:00-09:00">08:00 - 09:00</option>
+                <option value="09:00-10:00">09:00 - 10:00</option>
+                <option value="10:00-11:00">10:00 - 11:00</option>
+                <option value="11:00-12:00">11:00 - 12:00</option>
+                <option value="will be picked up">Will be picked up</option>
+            </select>
+            <button id="capture-button" class="capture-button mb-2">Scan delivery note</button>
+        </div>
+        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
+        <div id="klant-lijst" class="mb-8"></div>
+    </div>
+
+    <script src="customerData.js"></script>
+    <script>
+        let klantData = [];
+        let origineleVolgorde = [];
+        let isAlphabeticalSort = true;
+        let deliveryPhoto = null;
+        let deliveryLocation = null;
+
+        document.addEventListener('DOMContentLoaded', initializeData);
+
+        function initializeData() {
+            klantData = customerData.customers;
+            origineleVolgorde = klantData.map(klant => klant.id);
+            console.log('Processed customer data:', klantData);
+            toonKlanten('', true);
+        }
+
+        function toonKlanten(filter = '', sorteer = true, sorteerOpTijd = '') {
+            console.log('Displaying customers. Filter:', filter, 'Sort:', sorteer, 'Sort by time:', sorteerOpTijd);
+            const klantLijst = document.getElementById('klant-lijst');
+            klantLijst.innerHTML = '';
+            
+            let klanten = klantData.filter(klant => 
+                klant.name.toLowerCase().includes(filter.toLowerCase()) ||
+                (klant.customerNumber && klant.customerNumber.includes(filter)) ||
+                (klant.timeSlot && klant.timeSlot.toLowerCase().includes(filter.toLowerCase()))
+            );
+
+            if (sorteer) {
+                klanten.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sorteerOpTijd) {
+                klanten = klanten.filter(klant => {
+                    if (sorteerOpTijd === 'will be picked up') {
+                        return !klant.timeSlot;
+                    }
+                    if (!klant.timeSlot) return false;
+                    const [startTime, endTime] = sorteerOpTijd.split('-');
+                    const klantTime = klant.timeSlot.split(' - ')[0]; // Use the start time if a range is given
+                    return klantTime >= startTime && klantTime < endTime;
+                });
+            } else {
+                klanten.sort((a, b) => origineleVolgorde.indexOf(a.id) - origineleVolgorde.indexOf(b.id));
+            }
+
+            klanten.forEach(klant => {
+                const div = document.createElement('div');
+                div.className = 'klant-kader';
+                div.id = `klant-${klant.id}`;
+                div.innerHTML = `
+                    <div class="mb-4">
+                        <span class="font-semibold text-lg">${klant.name}</span><br>
+                        <span class="text-sm text-gray-500">Customer number: ${klant.customerNumber}</span><br>
+                        <span class="text-sm text-gray-500">${klant.timeSlot || 'No time slot'}</span>
+                    </div>
+                    <div class="flex flex-wrap justify-between items-center">
+                        <button class="details-button flex-grow mr-2 mb-2" onclick="toonKlantInfo('${klant.id}')">Details</button>
+                        <button class="mail-button flex-grow mb-2" onclick="startDeliveryConfirmation('${klant.id}')">Confirm Delivery</button>
+                    </div>
+                `;
+                klantLijst.appendChild(div);
+            });
+        }
+
+        function toonKlantInfo(klantId) {
+            console.log('Displaying customer info for ID:', klantId);
+            const klant = klantData.find(k => k.id === klantId);
+            const klantDiv = document.getElementById(`klant-${klantId}`);
+            
+            const bestaandeDetails = klantDiv.querySelector('.klant-details');
+            if (bestaandeDetails) {
+                bestaandeDetails.remove();
+            }
+
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'klant-details mt-4';
+            detailsDiv.innerHTML = `
+                <div class="w-full mb-4">
+                    <button class="back-button" onclick="verbergKlantInfo('${klantId}')">Back</button>
+                </div>
+                <div class="w-full">
+                    <h2 class="text-xl font-semibold mb-2">${klant.name}</h2>
+                    <p class="mb-2">Customer number: ${klant.customerNumber}</p>
+                    <p class="mb-2">Time slot: ${klant.timeSlot || 'No time slot'}</p>
+                    <p class="mb-2">Preferences: ${klant.voorkeuren || 'No preferences specified'}</p>
+                </div>
+                <div id="map-${klantId}" class="w-full h-64 mt-4"></div>
+            `;
+            klantDiv.appendChild(detailsDiv);
+
+            if (klant.locatie) {
+                const [lat, lng] = klant.locatie.split(', ').map(parseFloat);
+                const map = L.map(`map-${klantId}`).setView([lat, lng], 17);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                }).addTo(map);
+                L.marker([lat, lng]).addTo(map);
+            }
+        }
+
+        function verbergKlantInfo(klantId) {
+            const klantDiv = document.getElementById(`klant-${klantId}`);
+            const detailsDiv = klantDiv.querySelector('.klant-details');
+            if (detailsDiv) {
+                detailsDiv.remove();
+            }
+        }
+
+        function startDeliveryConfirmation(klantId) {
+            const klant = klantData.find(k => k.id === klantId);
+            const klantDiv = document.getElementById(`klant-${klantId}`);
+            
+            const bestaandeDetails = klantDiv.querySelector('.klant-details');
+            if (bestaandeDetails) {
+                bestaandeDetails.remove();
+            }
+
+            const confirmationDiv = document.createElement('div');
+            confirmationDiv.className = 'klant-details mt-4';
+            confirmationDiv.innerHTML = `
+                <div class="w-full mb-4">
+                    <button class="back-button" onclick="verbergKlantInfo('${klantId}')">Back</button>
+                </div>
+                <div class="w-full">
+                    <h2 class="text-xl font-semibold mb-2">Confirm Delivery for ${klant.name}</h2>
+                    <p class="mb-2">Customer number: ${klant.customerNumber}</p>
+                    <button id="take-photo-button" class="photo-button mb-4">Take Delivery Photo</button>
+                    <video id="camera-preview" class="hidden"></video>
+                    <canvas id="photo-canvas" class="hidden"></canvas>
+                    <img id="captured-photo" class="hidden max-w-full h-auto mb-4" alt="Captured delivery photo">
+                    <p id="location-info" class="mb-2"></p>
+                    <button id="confirm-delivery-button" class="mail-button w-full" disabled>Send Delivery Confirmation</button>
+                </div>
+            `;
+            klantDiv.appendChild(confirmationDiv);
+
+            const takePhotoButton = document.getElementById('take-photo-button');
+            const cameraPreview = document.getElementById('camera-preview');
+            const photoCanvas = document.getElementById('photo-canvas');
+            const capturedPhoto = document.getElementById('captured-photo');
+            const confirmDeliveryButton = document.getElementById('confirm-delivery-button');
+            const locationInfo = document.getElementById('location-info');
+
+            let stream;
+
+            takePhotoButton.addEventListener('click', async () => {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    cameraPreview.srcObject = stream;
+                    cameraPreview.classList.remove('hidden');
+                    await cameraPreview.play();
+
+                    takePhotoButton.textContent = 'Capture Photo';
+                    takePhotoButton.removeEventListener('click', arguments.callee);
+                    takePhotoButton.addEventListener('click', capturePhoto);
+                } catch (err) {
+                    console.error('Error accessing camera:', err);
+                    alert('Unable to access the camera. Please make sure you have granted the necessary permissions.');
+                }
+            });
+
+            function capturePhoto() {
+                photoCanvas.width = cameraPreview.videoWidth;
+                photoCanvas.height = cameraPreview.videoHeight;
+                photoCanvas.getContext('2d').drawImage(cameraPreview, 0, 0);
+                
+                deliveryPhoto = photoCanvas.toDataURL('image/jpeg');
+                capturedPhoto.src = deliveryPhoto;
+                capturedPhoto.classList.remove('hidden');
+                
+                stream.getTracks().forEach(track => track.stop());
+                cameraPreview.classList.add('hidden');
+                
+                takePhotoButton.textContent = 'Retake Photo';
+                takePhotoButton.removeEventListener('click', capturePhoto);
+                takePhotoButton.addEventListener('click', () => startDeliveryConfirmation(klantId));
+                
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            deliveryLocation = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            };
+                            locationInfo.textContent = `Location: ${deliveryLocation.latitude}, ${deliveryLocation.longitude}`;
+                            confirmDeliveryButton.disabled = false;
+                        },
+                        (error) => {
+                            console.error('Error getting location:', error);
+                            locationInfo.textContent = 'Unable to get location';
+                            confirmDeliveryButton.disabled = false;
+                        }
+                    );
+                } else {
+                    locationInfo.textContent = 'Geolocation is not supported by this browser';
+                    confirmDeliveryButton.disabled = false;
+                }
+            }
+
+            confirmDeliveryButton.addEventListener('click', () => sendDeliveryConfirmation(klant));
+        }
+
+        function sendDeliveryConfirmation(klant) {
+            const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
+            let body = `The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`;
+            
+            if (deliveryLocation) {
+                const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
+                body += `\n\nDelivery location: ${locationUrl}`;
+            }
+            
+            body = encodeURIComponent(body);
+
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = 'mailto:sales@vanlaethem.eu';
+            form.enctype = 'multipart/form-data';
+
+            const subjectInput = document.createElement('input');
+            subjectInput.type = 'hidden';
+            subjectInput.name = 'subject';
+            subjectInput.value = subject;
+            form.appendChild(subjectInput);
+
+            const bodyInput = document.createElement('input');
+            bodyInput.type = 'hidden';
+            bodyInput.name = 'body';
+            bodyInput.value = body;
+            form.appendChild(bodyInput);
+
+            if (deliveryPhoto) {
+                const photoInput = document.createElement('input');
+                photoInput.type = 'hidden';
+                photoInput.name = 'attachment';
+                photoInput.value = deliveryPhoto;
+                form.appendChild(photoInput);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            deliveryPhoto = null;
+            deliveryLocation = null;
+        }
+
+        document.getElementById('klant-zoek').addEventListener('input', function(e) {
+            toonKlanten(e.target.value, isAlphabeticalSort);
+        });
+
+        document.getElementById('sort-button').addEventListener('click', function() {
+            isAlphabeticalSort = !isAlphabeticalSort;
+            this.textContent = isAlphabeticalSort ? 'Original order' : 'Sort alphabetically';
+            toonKlanten('', isAlphabeticalSort);
+        });
+
+        document.getElementById('sort-time-select').addEventListener('change', function(e) {
+            toonKlanten('', false, e.target.value);
+        });
+
+        function performOCR(imageData) {
+            Tesseract.recognize(imageData, 'eng', { logger: m => console.log(m) })
+                .then(({ data: { text } }) => {
+                    console.log('OCR Result:', text);
+                    processOCRResult(text);
+                })
+                .catch(error => {
+                    console.error('OCR Error:', error);
+                    alert('Error processing the image. Please try again.');
+                });
+        }
+
+        function processOCRResult(text) {
+            const customerNumberMatch = text.match(/\b40\d{4,5}\b/);
+            if (customerNumberMatch) {
+                const customerNumber = customerNumberMatch[0];
+                console.log('Gevonden klantnummer:', customerNumber);
+                document.getElementById('klant-zoek').value = customerNumber;
+                toonKlanten(customerNumber, isAlphabeticalSort);
+            } else {
+                console.log('Geen geldig klantnummer gevonden in de tekst');
+                alert('Geen geldig klantnummer gevonden in de afbeelding. Probeer opnieuw.');
+            }
+        }
+
+        document.getElementById('capture-button').addEventListener('click', function() {
+            const fileInput = document.getElementById('file-input');
+            fileInput.click();
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0, img.width, img.height);
+                            const imageDataUrl = canvas.toDataURL('image/jpeg');
+                            performOCR(imageDataUrl);
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+        });
+    </script>
 </body>
 </html>
