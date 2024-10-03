@@ -156,7 +156,7 @@
                     </div>
                     <div class="flex flex-wrap justify-between items-center">
                         <button class="details-button flex-grow mr-2 mb-2" onclick="toonKlantInfo('${klant.id}')">Details</button>
-                        <button class="mail-button flex-grow mb-2" onclick="startDeliveryConfirmation('${klant.id}')">Confirm Delivery</button>
+                        <button class="mail-button flex-grow mb-2" onclick="confirmDelivery('${klant.id}')">Confirm Delivery</button>
                     </div>
                 `;
                 klantLijst.appendChild(div);
@@ -207,98 +207,49 @@
             }
         }
 
-        function startDeliveryConfirmation(klantId) {
+        function confirmDelivery(klantId) {
             const klant = klantData.find(k => k.id === klantId);
-            const klantDiv = document.getElementById(`klant-${klantId}`);
-            
-            const bestaandeDetails = klantDiv.querySelector('.klant-details');
-            if (bestaandeDetails) {
-                bestaandeDetails.remove();
-            }
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.capture = 'environment';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
 
-            const confirmationDiv = document.createElement('div');
-            confirmationDiv.className = 'klant-details mt-4';
-            confirmationDiv.innerHTML = `
-                <div class="w-full mb-4">
-                    <button class="back-button" onclick="verbergKlantInfo('${klantId}')">Back</button>
-                </div>
-                <div class="w-full">
-                    <h2 class="text-xl font-semibold mb-2">Confirm Delivery for ${klant.name}</h2>
-                    <p class="mb-2">Customer number: ${klant.customerNumber}</p>
-                    <button id="take-photo-button" class="photo-button mb-4">Take Delivery Photo</button>
-                    <video id="camera-preview" class="hidden"></video>
-                    <canvas id="photo-canvas" class="hidden"></canvas>
-                    <img id="captured-photo" class="hidden max-w-full h-auto mb-4" alt="Captured delivery photo">
-                    <p id="location-info" class="mb-2"></p>
-                    <button id="confirm-delivery-button" class="mail-button w-full" disabled>Send Delivery Confirmation</button>
-                </div>
-            `;
-            klantDiv.appendChild(confirmationDiv);
-
-            const takePhotoButton = document.getElementById('take-photo-button');
-            const cameraPreview = document.getElementById('camera-preview');
-            const photoCanvas = document.getElementById('photo-canvas');
-            const capturedPhoto = document.getElementById('captured-photo');
-            const confirmDeliveryButton = document.getElementById('confirm-delivery-button');
-            const locationInfo = document.getElementById('location-info');
-
-            let stream;
-
-            takePhotoButton.addEventListener('click', async () => {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                    cameraPreview.srcObject = stream;
-                    cameraPreview.classList.remove('hidden');
-                    await cameraPreview.play();
-
-                    takePhotoButton.textContent = 'Capture Photo';
-                    takePhotoButton.removeEventListener('click', arguments.callee);
-                    takePhotoButton.addEventListener('click', capturePhoto);
-                } catch (err) {
-                    console.error('Error accessing camera:', err);
-                    alert('Unable to access the camera. Please make sure you have granted the necessary permissions.');
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        deliveryPhoto = e.target.result;
+                        getLocation(klant);
+                    };
+                    reader.readAsDataURL(file);
                 }
-            });
+            };
 
-            function capturePhoto() {
-                photoCanvas.width = cameraPreview.videoWidth;
-                photoCanvas.height = cameraPreview.videoHeight;
-                photoCanvas.getContext('2d').drawImage(cameraPreview, 0, 0);
-                
-                deliveryPhoto = photoCanvas.toDataURL('image/jpeg');
-                capturedPhoto.src = deliveryPhoto;
-                capturedPhoto.classList.remove('hidden');
-                
-                stream.getTracks().forEach(track => track.stop());
-                cameraPreview.classList.add('hidden');
-                
-                takePhotoButton.textContent = 'Retake Photo';
-                takePhotoButton.removeEventListener('click', capturePhoto);
-                takePhotoButton.addEventListener('click', () => startDeliveryConfirmation(klantId));
-                
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            deliveryLocation = {
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude
-                            };
-                            locationInfo.textContent = `Location: ${deliveryLocation.latitude}, ${deliveryLocation.longitude}`;
-                            confirmDeliveryButton.disabled = false;
-                        },
-                        (error) => {
-                            console.error('Error getting location:', error);
-                            locationInfo.textContent = 'Unable to get location';
-                            confirmDeliveryButton.disabled = false;
-                        }
-                    );
-                } else {
-                    locationInfo.textContent = 'Geolocation is not supported by this browser';
-                    confirmDeliveryButton.disabled = false;
-                }
+            fileInput.click();
+        }
+
+        function getLocation(klant) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        deliveryLocation = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                        sendDeliveryConfirmation(klant);
+                    },
+                    (error) => {
+                        console.error('Error getting location:', error);
+                        sendDeliveryConfirmation(klant);
+                    }
+                );
+            } else {
+                console.log('Geolocation is not supported by this browser');
+                sendDeliveryConfirmation(klant);
             }
-
-            confirmDeliveryButton.addEventListener('click', () => sendDeliveryConfirmation(klant));
         }
 
         function sendDeliveryConfirmation(klant) {
