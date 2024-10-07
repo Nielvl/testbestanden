@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Management for Forklift Driver</title>
+    <title>Customer Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         .hidden { display: none; }
         .klant-kader {
@@ -64,38 +65,147 @@
                 flex: 1 1 100%;
             }
         }
-        #camera-preview {
-            width: 100%;
-            max-width: 400px;
-            margin-top: 20px;
+        .search-container {
+            position: sticky;
+            top: 0;
+            background-color: rgba(255, 255, 255, 0.8); /* Transparante witte achtergrond */
+            backdrop-filter: blur(5px); /* Voegt een blur effect toe voor betere leesbaarheid */
+            padding: 10px 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+        .search-input {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+        #klant-zoek {
+            flex-grow: 1;
+            border: none;
+            padding: 10px 15px;
+            outline: none;
+        }
+        .clear-search, .capture-button {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 15px;
+        }
+        .clear-search:hover, .capture-button:hover {
+            color: #333;
+        }
+        .scroll-top-button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .scroll-top-button:hover {
+            background-color: #0056b3;
+        }
+        .scroll-top-button span {
+            font-size: 6px;
+            margin-top: -2px;
+        }
+        .sort-toggle {
+            display: inline-flex;
+            border: 1px solid #007BFF;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .sort-option {
+            padding: 8px 16px;
+            background-color: white;
+            color: #007BFF;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .sort-option.active {
+            background-color: #007BFF;
+            color: white;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .capture-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .capture-button:hover {
+            background-color: #0056b3;
+        }
+        .capture-button i {
+            font-size: 18px;
+        }
+        .search-input .capture-button {
+            background: none;
+            color: #888;
+            width: auto;
+            height: auto;
+        }
+        .search-input .capture-button:hover {
+            color: #333;
         }
     </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-2xl font-bold mb-4">Customer Management for Forklift Driver</h1>
+        <h1 class="text-2xl font-bold mb-4">Customer Management</h1>
         
-        <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)..." class="w-full p-2 mb-8 border rounded">
-        <div class="flex flex-wrap justify-between mb-8">
-            <button id="sort-button" class="details-button mb-2">Original order</button>
-            <select id="sort-time-select" class="p-2 border rounded mb-2">
-                <option value="">Sort by time</option>
-                <option value="00:00-01:00">00:00 - 01:00</option>
-                <option value="01:00-02:00">01:00 - 02:00</option>
-                <option value="02:00-03:00">02:00 - 03:00</option>
-                <option value="03:00-04:00">03:00 - 04:00</option>
-                <option value="04:00-05:00">04:00 - 05:00</option>
-                <option value="05:00-06:00">05:00 - 06:00</option>
-                <option value="06:00-07:00">06:00 - 07:00</option>
-                <option value="07:00-08:00">07:00 - 08:00</option>
-                <option value="08:00-09:00">08:00 - 09:00</option>
-                <option value="09:00-10:00">09:00 - 10:00</option>
-                <option value="10:00-11:00">10:00 - 11:00</option>
-                <option value="11:00-12:00">11:00 - 12:00</option>
-                <option value="will be picked up">Will be picked up</option>
-            </select>
-            <button id="capture-button" class="capture-button mb-2">Scan delivery note</button>
+        <div class="search-container">
+            <div class="search-input">
+                <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)...">
+                <button id="capture-button-search" class="capture-button" title="Scan client number" style="display: none;">
+                    <i class="fas fa-camera"></i>
+                </button>
+                <button id="clear-search" class="clear-search" style="display: none;">&times;</button>
+            </div>
+            <button id="scroll-top" class="scroll-top-button" title="Scroll to top">
+                <i class="fas fa-chevron-up"></i>
+                <span>TOP</span>
+            </button>
         </div>
+        
+        <div class="button-container">
+            <div class="sort-toggle">
+                <button id="sort-time" class="sort-option active">By Time</button>
+                <button id="sort-alpha" class="sort-option">Alphabetically</button>
+            </div>
+            <button id="capture-button-main" class="capture-button" title="Scan client number">
+                <i class="fas fa-camera"></i>
+            </button>
+        </div>
+        
         <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
         <div id="klant-lijst" class="mb-8"></div>
     </div>
@@ -104,9 +214,7 @@
     <script>
         let klantData = [];
         let origineleVolgorde = [];
-        let isAlphabeticalSort = true;
-        let deliveryPhoto = null;
-        let deliveryLocation = null;
+        let isTimeSort = true;
 
         document.addEventListener('DOMContentLoaded', initializeData);
 
@@ -115,6 +223,36 @@
             origineleVolgorde = klantData.map(klant => klant.id);
             console.log('Processed customer data:', klantData);
             toonKlanten('', true);
+            scrollNaarHuidigeTijd();
+        }
+
+        function scrollNaarHuidigeTijd() {
+            const nu = new Date();
+            const huidigeUur = nu.getHours();
+            const tijdSlot = `${huidigeUur.toString().padStart(2, '0')}:00`;
+
+            console.log('Zoeken naar tijdslot:', tijdSlot); // Debug log
+
+            setTimeout(() => {
+                const klantenVanUur = document.querySelectorAll(`[data-timeslot^="${tijdSlot}"]`);
+                if (klantenVanUur.length > 0) {
+                    console.log('Gevonden element:', klantenVanUur[0]); // Debug log
+                    
+                    const searchContainer = document.querySelector('.search-container');
+                    const searchContainerHeight = searchContainer.offsetHeight;
+                    
+                    const elementRect = klantenVanUur[0].getBoundingClientRect();
+                    const absoluteElementTop = elementRect.top + window.pageYOffset;
+                    const middleOfViewport = window.innerHeight / 2;
+                    
+                    window.scrollTo({
+                        top: absoluteElementTop - searchContainerHeight - 20, // 20px extra ruimte
+                        behavior: 'smooth'
+                    });
+                } else {
+                    console.log('Geen element gevonden voor tijdslot:', tijdSlot); // Debug log
+                }
+            }, 500);
         }
 
         function toonKlanten(filter = '', sorteer = true, sorteerOpTijd = '') {
@@ -129,25 +267,21 @@
             );
 
             if (sorteer) {
-                klanten.sort((a, b) => a.name.localeCompare(b.name));
-            } else if (sorteerOpTijd) {
-                klanten = klanten.filter(klant => {
-                    if (sorteerOpTijd === 'will be picked up') {
-                        return !klant.timeSlot;
-                    }
-                    if (!klant.timeSlot) return false;
-                    const [startTime, endTime] = sorteerOpTijd.split('-');
-                    const klantTime = klant.timeSlot.split(' - ')[0]; // Use the start time if a range is given
-                    return klantTime >= startTime && klantTime < endTime;
+                klanten.sort((a, b) => {
+                    if (!a.timeSlot && !b.timeSlot) return 0;
+                    if (!a.timeSlot) return 1;
+                    if (!b.timeSlot) return -1;
+                    return a.timeSlot.localeCompare(b.timeSlot);
                 });
             } else {
-                klanten.sort((a, b) => origineleVolgorde.indexOf(a.id) - origineleVolgorde.indexOf(b.id));
+                klanten.sort((a, b) => a.name.localeCompare(b.name));
             }
 
             klanten.forEach(klant => {
                 const div = document.createElement('div');
                 div.className = 'klant-kader';
                 div.id = `klant-${klant.id}`;
+                div.dataset.timeslot = klant.timeSlot ? klant.timeSlot.split(' - ')[0] + '-' + klant.timeSlot.split(' - ')[1] : 'no-timeslot';
                 div.innerHTML = `
                     <div class="mb-4">
                         <span class="font-semibold text-lg">${klant.name}</span><br>
@@ -156,7 +290,7 @@
                     </div>
                     <div class="flex flex-wrap justify-between items-center">
                         <button class="details-button flex-grow mr-2 mb-2" onclick="toonKlantInfo('${klant.id}')">Details</button>
-                        <button class="mail-button flex-grow mb-2" onclick="confirmDelivery('${klant.id}')">Confirm Delivery</button>
+                        <button class="mail-button flex-grow mb-2" onclick="sendMail('${klant.id}')">Send email</button>
                     </div>
                 `;
                 klantLijst.appendChild(div);
@@ -185,7 +319,7 @@
                     <p class="mb-2">Time slot: ${klant.timeSlot || 'No time slot'}</p>
                     <p class="mb-2">Preferences: ${klant.voorkeuren || 'No preferences specified'}</p>
                 </div>
-                <div id="map-${klantId}" class="w-full h-64 mt-4"></div>
+                <div id="map-${klantId}" class="w-full h-64 mt-4 cursor-pointer"></div>
             `;
             klantDiv.appendChild(detailsDiv);
 
@@ -193,9 +327,18 @@
                 const [lat, lng] = klant.locatie.split(', ').map(parseFloat);
                 const map = L.map(`map-${klantId}`).setView([lat, lng], 17);
                 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
                 }).addTo(map);
                 L.marker([lat, lng]).addTo(map);
+
+                // Voeg een klikgebeurtenis toe aan de kaart
+                map.on('click', function() {
+                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                    window.open(googleMapsUrl, '_blank');
+                });
+
+                // Voeg een tooltip toe om de gebruiker te informeren
+                const mapElement = document.getElementById(`map-${klantId}`);
+                mapElement.title = "Klik om te openen in Google Maps";
             }
         }
 
@@ -207,109 +350,63 @@
             }
         }
 
-        function confirmDelivery(klantId) {
+        function sendMail(klantId) {
             const klant = klantData.find(k => k.id === klantId);
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*';
-            fileInput.capture = 'environment';
-            fileInput.style.display = 'none';
-            document.body.appendChild(fileInput);
-
-            fileInput.onchange = function(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        deliveryPhoto = e.target.result;
-                        getLocation(klant);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-
-            fileInput.click();
-        }
-
-        function getLocation(klant) {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        deliveryLocation = {
-                            latitude: position.coords.latitude,
-                            longitude: position.coords.longitude
-                        };
-                        sendDeliveryConfirmation(klant);
-                    },
-                    (error) => {
-                        console.error('Error getting location:', error);
-                        sendDeliveryConfirmation(klant);
-                    }
-                );
-            } else {
-                console.log('Geolocation is not supported by this browser');
-                sendDeliveryConfirmation(klant);
-            }
-        }
-
-        function sendDeliveryConfirmation(klant) {
             const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
-            let body = `The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`;
-            
-            if (deliveryLocation) {
-                const locationUrl = `https://www.google.com/maps?q=${deliveryLocation.latitude},${deliveryLocation.longitude}`;
-                body += `\n\nDelivery location: ${locationUrl}`;
-            }
-            
-            body = encodeURIComponent(body);
-
-            const form = document.createElement('form');
-            form.method = 'post';
-            form.action = 'mailto:sales@vanlaethem.eu';
-            form.enctype = 'multipart/form-data';
-
-            const subjectInput = document.createElement('input');
-            subjectInput.type = 'hidden';
-            subjectInput.name = 'subject';
-            subjectInput.value = subject;
-            form.appendChild(subjectInput);
-
-            const bodyInput = document.createElement('input');
-            bodyInput.type = 'hidden';
-            bodyInput.name = 'body';
-            bodyInput.value = body;
-            form.appendChild(bodyInput);
-
-            if (deliveryPhoto) {
-                const photoInput = document.createElement('input');
-                photoInput.type = 'hidden';
-                photoInput.name = 'attachment';
-                photoInput.value = deliveryPhoto;
-                form.appendChild(photoInput);
-            }
-
-            document.body.appendChild(form);
-            form.submit();
-            document.body.removeChild(form);
-
-            deliveryPhoto = null;
-            deliveryLocation = null;
+            const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`);
+            window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
         }
 
-        document.getElementById('klant-zoek').addEventListener('input', function(e) {
-            toonKlanten(e.target.value, isAlphabeticalSort);
+        const zoekInput = document.getElementById('klant-zoek');
+        const clearSearch = document.getElementById('clear-search');
+        const captureButtonMain = document.getElementById('capture-button-main');
+        const captureButtonSearch = document.getElementById('capture-button-search');
+
+        zoekInput.addEventListener('focus', function() {
+            clearSearch.style.display = 'block';
         });
 
-        document.getElementById('sort-button').addEventListener('click', function() {
-            isAlphabeticalSort = !isAlphabeticalSort;
-            this.textContent = isAlphabeticalSort ? 'Original order' : 'Sort alphabetically';
-            toonKlanten('', isAlphabeticalSort);
+        zoekInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                if (this.value === '' && document.activeElement !== captureButtonMain && document.activeElement !== captureButtonSearch) {
+                    clearSearch.style.display = 'none';
+                }
+            }, 100);
         });
 
-        document.getElementById('sort-time-select').addEventListener('change', function(e) {
-            toonKlanten('', false, e.target.value);
+        zoekInput.addEventListener('input', function(e) {
+            toonKlanten(e.target.value, isTimeSort);
+            clearSearch.style.display = this.value ? 'block' : 'none';
         });
 
+        clearSearch.addEventListener('click', function() {
+            zoekInput.value = '';
+            toonKlanten('', isTimeSort);
+            zoekInput.focus();
+        });
+
+        document.getElementById('sort-time').addEventListener('click', function() {
+            if (!isTimeSort) {
+                isTimeSort = true;
+                updateSortButtons();
+                toonKlanten('', true);
+            }
+        });
+
+        document.getElementById('sort-alpha').addEventListener('click', function() {
+            if (isTimeSort) {
+                isTimeSort = false;
+                updateSortButtons();
+                toonKlanten('', false);
+            }
+        });
+
+        function updateSortButtons() {
+            document.getElementById('sort-time').classList.toggle('active', isTimeSort);
+            document.getElementById('sort-alpha').classList.toggle('active', !isTimeSort);
+        }
+
+        // OCR functie
         function performOCR(imageData) {
             Tesseract.recognize(imageData, 'eng', { logger: m => console.log(m) })
                 .then(({ data: { text } }) => {
@@ -323,19 +420,22 @@
         }
 
         function processOCRResult(text) {
+            // Zoek naar klantnummer dat begint met "40" en 6 of 7 cijfers heeft
             const customerNumberMatch = text.match(/\b40\d{4,5}\b/);
             if (customerNumberMatch) {
                 const customerNumber = customerNumberMatch[0];
                 console.log('Gevonden klantnummer:', customerNumber);
+                // Vul het zoekveld automatisch in met het gevonden klantnummer
                 document.getElementById('klant-zoek').value = customerNumber;
-                toonKlanten(customerNumber, isAlphabeticalSort);
+                // Trigger de zoekopdracht
+                toonKlanten(customerNumber, isTimeSort);
             } else {
                 console.log('Geen geldig klantnummer gevonden in de tekst');
                 alert('Geen geldig klantnummer gevonden in de afbeelding. Probeer opnieuw.');
             }
         }
 
-        document.getElementById('capture-button').addEventListener('click', function() {
+        function handleCapture() {
             const fileInput = document.getElementById('file-input');
             fileInput.click();
             fileInput.onchange = function(event) {
@@ -358,6 +458,31 @@
                     reader.readAsDataURL(file);
                 }
             };
+        }
+
+        captureButtonMain.addEventListener('click', handleCapture);
+        captureButtonSearch.addEventListener('click', handleCapture);
+
+        const scrollTopButton = document.getElementById('scroll-top');
+
+        scrollTopButton.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Optioneel: Toon/verberg de scroll-top knop afhankelijk van de scroll positie
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 100) {
+                captureButtonMain.style.display = 'none';
+                captureButtonSearch.style.display = 'flex';
+                scrollTopButton.style.display = 'flex';
+            } else {
+                captureButtonMain.style.display = 'flex';
+                captureButtonSearch.style.display = 'none';
+                scrollTopButton.style.display = 'none';
+            }
         });
     </script>
 </body>
