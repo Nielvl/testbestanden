@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         .hidden { display: none; }
@@ -208,6 +209,8 @@
         
         <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
         <div id="klant-lijst" class="mb-8"></div>
+        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
+        <canvas id="photo-canvas" style="display: none;"></canvas>
     </div>
 
     <script src="customerData.js"></script>
@@ -354,9 +357,62 @@
             const klant = klantData.find(k => k.id === klantId);
             const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
             const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`);
-            window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
+            
+            const cameraButton = document.createElement('button');
+            cameraButton.innerText = 'Take Photo';
+            cameraButton.className = 'mail-button';
+            cameraButton.onclick = () => activateCamera(klantId);
+            
+            const klantDiv = document.getElementById(`klant-${klantId}`);
+            const buttonContainer = klantDiv.querySelector('.flex');
+            buttonContainer.appendChild(cameraButton);
         }
 
+        function activateCamera(klantId) {
+            const cameraInput = document.getElementById('camera-input');
+            cameraInput.click();
+            cameraInput.onchange = (event) => handlePhoto(event, klantId);
+        }
+
+        function handlePhoto(event, klantId) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('photo-canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    EXIF.getData(img, function() {
+                        const lat = EXIF.getTag(this, "GPSLatitude");
+                        const lon = EXIF.getTag(this, "GPSLongitude");
+                        if (lat && lon) {
+                            const coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
+                            sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
+                        } else {
+                            alert("No GPS data found in the image.");
+                        }
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+function sendEmailWithPhoto(klantId, photoDataUrl, coordinates) {
+    const klant = klantData.find(k => k.id === klantId);
+    const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
+    const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.\n\nCoordinates: ${coordinates}`);
+    
+    // In een echte productieomgeving zou je hier de foto uploaden naar een server
+    // en een link genereren. Voor dit voorbeeld gebruiken we een dummy link.
+    const photoLink = encodeURIComponent(photoDataUrl);
+    
+    window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}&attachment=${photoLink}`;
+}
         const zoekInput = document.getElementById('klant-zoek');
         const clearSearch = document.getElementById('clear-search');
         const captureButtonMain = document.getElementById('capture-button-main');
