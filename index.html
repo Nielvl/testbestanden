@@ -411,7 +411,7 @@
             reader.readAsDataURL(file);
         }
 
-
+        const DROPBOX_ACCESS_TOKEN = process.env.REACT_APP_DROPBOX_ACCESS_TOKEN;
         
     async function uploadPhoto(photoDataUrl) {
         const dbx = new Dropbox.Dropbox({ accessToken: DROPBOX_ACCESS_TOKEN });
