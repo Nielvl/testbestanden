@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/10.34.0/Dropbox-sdk.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         .hidden { display: none; }
@@ -375,55 +376,86 @@
         }
 
         function handlePhoto(event, klantId) {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.getElementById('photo-canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                EXIF.getData(img, function() {
-                    const lat = EXIF.getTag(this, "GPSLatitude");
-                    const lon = EXIF.getTag(this, "GPSLongitude");
-                    if (lat && lon) {
-                        const coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
-                        sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
-                    } else {
-                        // Fallback naar Geolocation API
-                        if ("geolocation" in navigator) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('photo-canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    EXIF.getData(img, function() {
+                        let coordinates = "Location not available";
+                        const lat = EXIF.getTag(this, "GPSLatitude");
+                        const lon = EXIF.getTag(this, "GPSLongitude");
+                        if (lat && lon) {
+                            coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
+                        } else if ("geolocation" in navigator) {
                             navigator.geolocation.getCurrentPosition(function(position) {
-                                const coordinates = `${position.coords.latitude}, ${position.coords.longitude}`;
+                                coordinates = `${position.coords.latitude}, ${position.coords.longitude}`;
                                 sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
                             }, function(error) {
                                 console.error("Error getting location:", error);
-                                sendEmailWithPhoto(klantId, canvas.toDataURL(), "Location not available");
+                                sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
                             });
                         } else {
-                            console.log("Geolocation is not supported by this browser.");
-                            sendEmailWithPhoto(klantId, canvas.toDataURL(), "Location not available");
+                            sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
                         }
-                    }
-                });
+                    });
+                };
+                img.src = e.target.result;
             };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+            reader.readAsDataURL(file);
+        }
+
+
+        
+    async function uploadPhoto(photoDataUrl) {
+        const dbx = new Dropbox.Dropbox({ accessToken: DROPBOX_ACCESS_TOKEN });
+        
+        // Convert base64 to blob
+        const blob = await (await fetch(photoDataUrl)).blob();
+        
+        // Generate a unique filename
+        const filename = `photo_${Date.now()}.jpg`;
+        
+        try {
+            // Upload file to Dropbox
+            const response = await dbx.filesUpload({
+                path: '/' + filename,
+                contents: blob
+            });
+            
+            // Create a shared link
+            const shareResponse = await dbx.sharingCreateSharedLinkWithSettings({
+                path: response.result.path_display
+            });
+            
+            // Return the direct link to the file
+            return shareResponse.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+        } catch (error) {
+            console.error('Error uploading to Dropbox:', error);
+            throw error;
+        }
     }
 
-function sendEmailWithPhoto(klantId, photoDataUrl, coordinates) {
-    const klant = klantData.find(k => k.id === klantId);
-    const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
-    const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.\n\nCoordinates: ${coordinates}`);
-    
-    // In een echte productieomgeving zou je hier de foto uploaden naar een server
-    // en een link genereren. Voor dit voorbeeld gebruiken we een dummy link.
-    const photoLink = encodeURIComponent(photoDataUrl);
-    
-    window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}&attachment=${photoLink}`;
+    async function sendEmailWithPhoto(klantId, photoDataUrl, coordinates) {
+    try {
+        // Upload de foto naar Dropbox
+        const photoUrl = await uploadPhoto(photoDataUrl);
+
+        const klant = klantData.find(k => k.id === klantId);
+        const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
+        const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.\n\nCoordinates: ${coordinates}\n\nPhoto: ${photoUrl}`);
+        
+        window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
+    } catch (error) {
+        console.error('Error uploading photo:', error);
+        alert('Er is een fout opgetreden bij het uploaden van de foto. Probeer het opnieuw.');
+    }
 }
         const zoekInput = document.getElementById('klant-zoek');
         const clearSearch = document.getElementById('clear-search');

@@ -23,7 +23,9 @@ app.use('/uploads', express.static('uploads'));
 // Route voor het uploaden van foto's
 app.post('/upload', upload.single('photo'), (req, res) => {
     if (req.file) {
-        res.json({ location: `/uploads/${req.file.filename}` });
+        // Stuur de volledige URL terug, inclusief het domein
+        const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        res.json({ location: photoUrl });
     } else {
         res.status(400).send('No file uploaded.');
     }
