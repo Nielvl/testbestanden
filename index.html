@@ -375,32 +375,44 @@
         }
 
         function handlePhoto(event, klantId) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.getElementById('photo-canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    
-                    EXIF.getData(img, function() {
-                        const lat = EXIF.getTag(this, "GPSLatitude");
-                        const lon = EXIF.getTag(this, "GPSLongitude");
-                        if (lat && lon) {
-                            const coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
-                            sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.getElementById('photo-canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                EXIF.getData(img, function() {
+                    const lat = EXIF.getTag(this, "GPSLatitude");
+                    const lon = EXIF.getTag(this, "GPSLongitude");
+                    if (lat && lon) {
+                        const coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
+                        sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
+                    } else {
+                        // Fallback naar Geolocation API
+                        if ("geolocation" in navigator) {
+                            navigator.geolocation.getCurrentPosition(function(position) {
+                                const coordinates = `${position.coords.latitude}, ${position.coords.longitude}`;
+                                sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
+                            }, function(error) {
+                                console.error("Error getting location:", error);
+                                sendEmailWithPhoto(klantId, canvas.toDataURL(), "Location not available");
+                            });
                         } else {
-                            alert("No GPS data found in the image.");
+                            console.log("Geolocation is not supported by this browser.");
+                            sendEmailWithPhoto(klantId, canvas.toDataURL(), "Location not available");
                         }
-                    });
-                };
-                img.src = e.target.result;
+                    }
+                });
             };
-            reader.readAsDataURL(file);
-        }
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
 
 function sendEmailWithPhoto(klantId, photoDataUrl, coordinates) {
     const klant = klantData.find(k => k.id === klantId);
