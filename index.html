@@ -8,8 +8,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropbox.js/10.34.0/Dropbox-sdk.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         .hidden { display: none; }
@@ -178,43 +176,75 @@
         .search-input .capture-button:hover {
             color: #333;
         }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f0f0f0;
+            border: none;
+            cursor: pointer;
+        }
+        .tab-button.active {
+            background-color: #007BFF;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-2xl font-bold mb-4">Customer Management</h1>
+        <h1 class="text-2xl font-bold mb-4">Management System</h1>
         
-        <div class="search-container">
-            <div class="search-input">
-                <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)...">
-                <button id="capture-button-search" class="capture-button" title="Scan client number" style="display: none;">
+        <div class="mb-4">
+            <button id="tab-customers" class="tab-button active">Customers</button>
+            <button id="tab-warehouses" class="tab-button">Warehouses</button>
+        </div>
+
+        <div id="customers-content" class="tab-content active">
+            <div class="search-container">
+                <div class="search-input">
+                    <input type="text" id="klant-zoek" placeholder="Search for a customer (name, number or time slot)...">
+                    <button id="capture-button-search" class="capture-button" title="Scan client number" style="display: none;">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <button id="clear-search" class="clear-search" style="display: none;">&times;</button>
+                </div>
+                <button id="scroll-top" class="scroll-top-button" title="Scroll to top">
+                    <i class="fas fa-chevron-up"></i>
+                    <span>TOP</span>
+                </button>
+            </div>
+            
+            <div class="button-container">
+                <div class="sort-toggle">
+                    <button id="sort-time" class="sort-option active">By Time</button>
+                    <button id="sort-alpha" class="sort-option">Alphabetically</button>
+                </div>
+                <button id="capture-button-main" class="capture-button" title="Scan client number">
                     <i class="fas fa-camera"></i>
                 </button>
-                <button id="clear-search" class="clear-search" style="display: none;">&times;</button>
             </div>
-            <button id="scroll-top" class="scroll-top-button" title="Scroll to top">
-                <i class="fas fa-chevron-up"></i>
-                <span>TOP</span>
-            </button>
+            
+            <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
+            <div id="klant-lijst" class="mb-8"></div>
         </div>
-        
-        <div class="button-container">
-            <div class="sort-toggle">
-                <button id="sort-time" class="sort-option active">By Time</button>
-                <button id="sort-alpha" class="sort-option">Alphabetically</button>
+
+        <div id="warehouses-content" class="tab-content">
+            <div class="search-container">
+                <div class="search-input">
+                    <input type="text" id="warehouse-zoek" placeholder="Search for a warehouse...">
+                    <button id="clear-warehouse-search" class="clear-search" style="display: none;">&times;</button>
+                </div>
             </div>
-            <button id="capture-button-main" class="capture-button" title="Scan client number">
-                <i class="fas fa-camera"></i>
-            </button>
+            <div id="warehouse-lijst" class="mb-8"></div>
         </div>
-        
-        <input type="file" id="file-input" accept="image/*" capture="environment" class="hidden">
-        <div id="klant-lijst" class="mb-8"></div>
-        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
-        <canvas id="photo-canvas" style="display: none;"></canvas>
     </div>
 
     <script src="customerData.js"></script>
+    <script src="warehouseData.js"></script>
     <script>
         let klantData = [];
         let origineleVolgorde = [];
@@ -358,105 +388,9 @@
             const klant = klantData.find(k => k.id === klantId);
             const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
             const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.`);
-            
-            const cameraButton = document.createElement('button');
-            cameraButton.innerText = 'Take Photo';
-            cameraButton.className = 'mail-button';
-            cameraButton.onclick = () => activateCamera(klantId);
-            
-            const klantDiv = document.getElementById(`klant-${klantId}`);
-            const buttonContainer = klantDiv.querySelector('.flex');
-            buttonContainer.appendChild(cameraButton);
+            window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
         }
 
-        function activateCamera(klantId) {
-            const cameraInput = document.getElementById('camera-input');
-            cameraInput.click();
-            cameraInput.onchange = (event) => handlePhoto(event, klantId);
-        }
-
-        function handlePhoto(event, klantId) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.getElementById('photo-canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    
-                    EXIF.getData(img, function() {
-                        let coordinates = "Location not available";
-                        const lat = EXIF.getTag(this, "GPSLatitude");
-                        const lon = EXIF.getTag(this, "GPSLongitude");
-                        if (lat && lon) {
-                            coordinates = `${lat[0]}°${lat[1]}'${lat[2]}"N, ${lon[0]}°${lon[1]}'${lon[2]}"E`;
-                        } else if ("geolocation" in navigator) {
-                            navigator.geolocation.getCurrentPosition(function(position) {
-                                coordinates = `${position.coords.latitude}, ${position.coords.longitude}`;
-                                sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
-                            }, function(error) {
-                                console.error("Error getting location:", error);
-                                sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
-                            });
-                        } else {
-                            sendEmailWithPhoto(klantId, canvas.toDataURL(), coordinates);
-                        }
-                    });
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        const DROPBOX_ACCESS_TOKEN = process.env.REACT_APP_DROPBOX_ACCESS_TOKEN;
-        
-    async function uploadPhoto(photoDataUrl) {
-        const dbx = new Dropbox.Dropbox({ accessToken: DROPBOX_ACCESS_TOKEN });
-        
-        // Convert base64 to blob
-        const blob = await (await fetch(photoDataUrl)).blob();
-        
-        // Generate a unique filename
-        const filename = `photo_${Date.now()}.jpg`;
-        
-        try {
-            // Upload file to Dropbox
-            const response = await dbx.filesUpload({
-                path: '/' + filename,
-                contents: blob
-            });
-            
-            // Create a shared link
-            const shareResponse = await dbx.sharingCreateSharedLinkWithSettings({
-                path: response.result.path_display
-            });
-            
-            // Return the direct link to the file
-            return shareResponse.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
-        } catch (error) {
-            console.error('Error uploading to Dropbox:', error);
-            throw error;
-        }
-    }
-
-    async function sendEmailWithPhoto(klantId, photoDataUrl, coordinates) {
-    try {
-        // Upload de foto naar Dropbox
-        const photoUrl = await uploadPhoto(photoDataUrl);
-
-        const klant = klantData.find(k => k.id === klantId);
-        const subject = encodeURIComponent(`Customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered`);
-        const body = encodeURIComponent(`The customer ${klant.name} (Customer number: ${klant.customerNumber}) has been delivered.\n\nCoordinates: ${coordinates}\n\nPhoto: ${photoUrl}`);
-        
-        window.location.href = `mailto:sales@vanlaethem.eu?subject=${subject}&body=${body}`;
-    } catch (error) {
-        console.error('Error uploading photo:', error);
-        alert('Er is een fout opgetreden bij het uploaden van de foto. Probeer het opnieuw.');
-    }
-}
         const zoekInput = document.getElementById('klant-zoek');
         const clearSearch = document.getElementById('clear-search');
         const captureButtonMain = document.getElementById('capture-button-main');
@@ -583,6 +517,99 @@
                 captureButtonSearch.style.display = 'none';
                 scrollTopButton.style.display = 'none';
             }
+        });
+
+        // Nieuwe code voor magazijnen
+        let warehouseList = [];
+
+        function initializeWarehouseData() {
+            warehouseList = warehouseData.warehouses;
+            toonMagazijnen();
+        }
+
+        function toonMagazijnen(filter = '') {
+            const magazijnLijst = document.getElementById('warehouse-lijst');
+            magazijnLijst.innerHTML = '';
+            
+            const magazijnen = warehouseList.filter(magazijn => 
+                magazijn.name.toLowerCase().includes(filter.toLowerCase()) ||
+                magazijn.address.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            magazijnen.forEach(magazijn => {
+                const div = document.createElement('div');
+                div.className = 'klant-kader';
+                div.innerHTML = `
+                    <div class="mb-4">
+                        <span class="font-semibold text-lg">${magazijn.name}</span><br>
+                        <span class="text-sm text-gray-500">${magazijn.address}</span><br>
+                    </div>
+                    <button class="details-button" onclick="toonMagazijnInfo('${magazijn.id}')">Details</button>
+                `;
+                magazijnLijst.appendChild(div);
+            });
+        }
+
+        function toonMagazijnInfo(magazijnId) {
+            const magazijn = warehouseList.find(w => w.id === magazijnId);
+            const magazijnDiv = document.querySelector(`[onclick="toonMagazijnInfo('${magazijnId}')"]`).parentNode;
+            
+            const bestaandeDetails = magazijnDiv.querySelector('.magazijn-details');
+            if (bestaandeDetails) {
+                bestaandeDetails.remove();
+                return;
+            }
+
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'magazijn-details mt-4';
+            detailsDiv.innerHTML = `
+                <p>Type: ${magazijn.type}</p>
+                <div id="map-${magazijnId}" class="w-full h-64 mt-4"></div>
+            `;
+            magazijnDiv.appendChild(detailsDiv);
+
+            if (magazijn.location) {
+                const [lat, lng] = magazijn.location.split(', ').map(parseFloat);
+                const map = L.map(`map-${magazijnId}`).setView([lat, lng], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+                L.marker([lat, lng]).addTo(map);
+            }
+        }
+
+        // Tab functionaliteit
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                button.classList.add('active');
+                document.getElementById(`${button.id.split('-')[1]}-content`).classList.add('active');
+            });
+        });
+
+        // Zoekfunctionaliteit voor magazijnen
+        const warehouseZoekInput = document.getElementById('warehouse-zoek');
+        const clearWarehouseSearch = document.getElementById('clear-warehouse-search');
+
+        warehouseZoekInput.addEventListener('input', function(e) {
+            toonMagazijnen(e.target.value);
+            clearWarehouseSearch.style.display = this.value ? 'block' : 'none';
+        });
+
+        clearWarehouseSearch.addEventListener('click', function() {
+            warehouseZoekInput.value = '';
+            toonMagazijnen();
+            warehouseZoekInput.focus();
+        });
+
+        // Initialisatie
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeData();
+            initializeWarehouseData();
         });
     </script>
 </body>

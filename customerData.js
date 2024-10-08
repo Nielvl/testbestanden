@@ -595,5 +595,14 @@ const customerData = {
         "voertuigFoto": "",
         "locatie": ""
       },
+      {
+        "id": "tanghe-wim",
+        "name": "TANGHE WIM",
+        "customerNumber": "400910",
+        "timeSlot": "06:00",
+        "voorkeuren": "ALWAYS WITH BOUVRY BUT NOT ON THURSDAYS, THEN HE HAS HIS OWN TRUCK.",
+        "voertuigFoto": "",
+        "locatie": ""
+      },
     ]
   }
