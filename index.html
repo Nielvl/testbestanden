@@ -571,8 +571,7 @@
             if (magazijn.location) {
                 const [lat, lng] = magazijn.location.split(', ').map(parseFloat);
                 const map = L.map(`map-${magazijnId}`).setView([lat, lng], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 }).addTo(map);
                 L.marker([lat, lng]).addTo(map);
             }
