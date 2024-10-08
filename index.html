@@ -192,6 +192,17 @@
         .tab-content.active {
             display: block;
         }
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        .loading-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-style: italic;
+            color: #666;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -564,16 +575,31 @@
             detailsDiv.className = 'magazijn-details mt-4';
             detailsDiv.innerHTML = `
                 <p>Type: ${magazijn.type}</p>
-                <div id="map-${magazijnId}" class="w-full h-64 mt-4"></div>
+                <div id="map-${magazijnId}" class="w-full h-64 mt-4">
+                    <div class="loading-indicator">Kaart wordt geladen...</div>
+                </div>
             `;
             magazijnDiv.appendChild(detailsDiv);
 
             if (magazijn.location) {
-                const [lat, lng] = magazijn.location.split(', ').map(parseFloat);
-                const map = L.map(`map-${magazijnId}`).setView([lat, lng], 13);
-                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                }).addTo(map);
-                L.marker([lat, lng]).addTo(map);
+                setTimeout(() => {
+                    const mapContainer = document.getElementById(`map-${magazijnId}`);
+                    mapContainer.innerHTML = ''; // Verwijder de laad-indicator
+
+                    const [lat, lng] = magazijn.location.split(', ').map(parseFloat);
+                    const map = L.map(`map-${magazijnId}`, {
+                        attributionControl: false,  // Verwijder de attributie
+                        zoomControl: false  // Verwijder de zoomknoppen
+                    }).setView([lat, lng], 17);  // Zoom level verhoogd voor betere satellietweergave
+
+                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                        attribution: ''  // Lege attributie
+                    }).addTo(map);
+
+                    L.marker([lat, lng]).addTo(map);
+
+                    map.invalidateSize();
+                }, 100);
             }
         }
 
