@@ -1,0 +1,13 @@
+<div class="search-container">
+  <input [(ngModel)]="searchTerm" (input)="onSearch()" placeholder="Zoek naar een klant...">
+  <button (click)="onSortChange()">{{ isTimeSort ? 'Sorteer op naam' : 'Sorteer op tijd' }}</button>
+</div>
+
+<div class="customer-list">
+  <div *ngFor="let customer of customers" class="customer-item">
+    <h3>{{ customer.name }}</h3>
+    <p>Klantnummer: {{ customer.customerNumber }}</p>
+    <p>Tijdslot: {{ customer.timeSlot || 'Geen tijdslot' }}</p>
+    <a [routerLink]="['/customers', customer.id]">Details</a>
+  </div>
+</div>

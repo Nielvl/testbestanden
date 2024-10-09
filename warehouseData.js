@@ -15,6 +15,13 @@ const warehouseData = {
             location: "50.87779972895718, 4.370239573954388"
         },
         {
+            id: "wh4",
+            name: "VAN LIER MABRU",
+            address: "37-38",
+            type: "WAREHOUSE",
+            location: "50.877615992609044, 4.368827547840028"
+        },
+        {
             id: "wh3",
             name: "RINGOOT",
             address: "22-24",
@@ -28,13 +35,7 @@ const warehouseData = {
             type: "WAREHOUSE",
             location: "50.87666714133884, 4.371436877810151"
         },
-        {
-            id: "wh4",
-            name: "VAN LIER MABRU",
-            address: "37-38",
-            type: "WAREHOUSE",
-            location: "50.877615992609044, 4.368827547840028"
-        },
+
         // Voeg meer magazijnen toe zoals nodig
     ]
 };
